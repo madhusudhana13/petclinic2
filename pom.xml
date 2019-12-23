@@ -116,16 +116,7 @@
                 <!--  because Spring Data usually comes with a slightly older version of Spring -->
             </exclusions>
         </dependency>
-<pluginManagement>
-    <plugins>
-        ...
-        <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>sonar-maven-plugin</artifactId>
-            <version>2.2</version>
-        </plugin>
-    </plugins>
-</pluginManagement>
+
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-jdbc</artifactId>
