@@ -1,35 +1,73 @@
-node {
-	def mavenHome
-        
-        stage('Code Checkout') { 
-		// Get code from a repository and Git has to be installed in the system; git must be configured in the Global Tool Configuration
-		git 'https://github.com/mitesh51/spring-petclinic.git'
-           
-		// Get the Maven tool configured in Global Tool Configuration 
-		// 'apache-maven-3.5.3' Maven tool must be configured in the global configuration.
-		mavenHome = tool 'apache-maven-3.5.3'
+pipeline{
+    agent any
+    tools {
+        maven "maven"
+    }
+    environment {
+        NEXUS_VERSION = "nexus3"
+        NEXUS_PROTOCOL = "http"
+        NEXUS_URL = "ec2-13-234-122-124.ap-south-1.compute.amazonaws.com:8081"
+        NEXUS_REPOSITORY = "pipeline_pet_nexus_deploy"
+        NEXUS_CREDENTIAL_ID = "Nexus_cred"
+    }
+    stages {
+        stage('gitscm'){
+            steps{
+                git credentialsId: 'git_credentials', url: 'https://github.com/vishnu1907/petclinic2.git'
+            }
         }
-        stage('Code Analysis') {
-                // Configure SonarQube Scanner in Manage Jenkins -> Global Tool Configuration
-                def scannerHome = tool 'SonarQube Scanner';
+        stage('build session'){
+            steps{
+                sh "mvn clean package"
+            }
+        }
+         stage("publish to nexus") {
+            steps {
+                script {
+                    
+                    pom = readMavenPom file: "pom.xml";
+                    
+                    filesByGlob = findFiles(glob: "target/*.${pom.packaging}");
+                    
+                    echo "${filesByGlob[0].name} ${filesByGlob[0].path} ${filesByGlob[0].directory} ${filesByGlob[0].length} ${filesByGlob[0].lastModified}"
+                    
+                    artifactPath = filesByGlob[0].path;
+                    
+                    artifactExists = fileExists artifactPath;
+                    if(artifactExists) {
+                        echo "*** File: ${artifactPath}, group: ${pom.groupId}, packaging: ${pom.packaging}, version ${pom.version}";
+                        nexusArtifactUploader(
+                            nexusVersion: NEXUS_VERSION,
+                            protocol: NEXUS_PROTOCOL,
+                            nexusUrl: NEXUS_URL,
+                            groupId: pom.groupId,
+                            version: '${BUILD_NUMBER}',
+                            repository: NEXUS_REPOSITORY,
+                            credentialsId: NEXUS_CREDENTIAL_ID,
+                            artifacts: [
+                                
+                                [artifactId: pom.artifactId,
+                                classifier: '',
+                                file: artifactPath,
+                                type: pom.packaging],
+                                
+                                [artifactId: pom.artifactId,
+                                classifier: '',
+                                file: "pom.xml",
+                                type: "pom"]
+                            ]
+                        );
+                    } else {
+                        error "*** File: ${artifactPath}, could not be found";
+                    }
+                }
+            }
+        }
 
-                // Sonarqube 7 must be configured in the Jenkins Manage Jenkins -> Configure System -> Add SonarQube server 
-                withSonarQubeEnv('Sonar7.1') {
-                        bat "${scannerHome}/bin/sonar-scanner -Dsonar.host.url=http://localhost:9000 -Dsonar.login=cb4e2ac86c60200796a7cf866c2a60955a505db2 -Dsonar.projectVersion=1.0 -Dsonar.projectKey=PetClinic_Key -Dsonar.sources=src -Dsonar.java.binaries=."
-                }
-        } 
-	stage('Build') {
-                // Execute shell script if OS flavor is Linux
-                if (isUnix()) {
-                        sh "'${mavenHome}/bin/mvn' -Dmaven.test.failure.ignore clean package"
-                        // Publish JUnit Report
-                        junit '**/target/surefire-reports/TEST-*.xml'
-                } 
-                else {
-                        // Execute Batch script if OS flavor is Windows		
-                        bat(/"${mavenHome}\bin\mvn" clean package/)
-                        // Publish JUnit Report
-                        junit '**/target/surefire-reports/TEST-*.xml'
-                }
-	}
+        stage('deloy to server'){
+            steps{
+                sh "curl -v -u admin:admin -T /var/lib/jenkins/workspace/Pipeline_petclinic/target/petclinic.war 'http://ec2-13-235-79-26.ap-south-1.compute.amazonaws.com:8080/manager/text/deploy?path=/petclinic_tomcat_deploy&update=true'"
+            }
+        }
+    }
 }
