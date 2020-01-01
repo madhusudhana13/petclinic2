@@ -6,8 +6,8 @@ pipeline{
     environment {
         NEXUS_VERSION = "nexus3"
         NEXUS_PROTOCOL = "http"
-        NEXUS_URL = "ec2-13-234-122-124.ap-south-1.compute.amazonaws.com:8081"
-        NEXUS_REPOSITORY = "pipeline_pet_nexus_deploy"
+        NEXUS_URL = "ec2-52-66-51-33.ap-south-1.compute.amazonaws.com:8081"
+        NEXUS_REPOSITORY = "nexus"
         NEXUS_CREDENTIAL_ID = "Nexus_cred"
     }
     stages {
@@ -66,7 +66,7 @@ pipeline{
 
         stage('deloy to server'){
             steps{
-                sh "curl -v -u admin:admin -T /var/lib/jenkins/workspace/Pipeline_petclinic/target/petclinic.war 'http://ec2-13-235-79-26.ap-south-1.compute.amazonaws.com:8080/manager/text/deploy?path=/petclinic_tomcat_deploy&update=true'"
+                sh "curl -v -u admin:admin -T /var/lib/jenkins/workspace/nexus/target/petclinic.war 'http://ec2-52-66-236-202.ap-south-1.compute.amazonaws.com:8080/manager/text/deploy?path=/neuxus&update=true'"
             }
         }
     }
